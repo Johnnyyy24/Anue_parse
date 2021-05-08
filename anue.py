@@ -4,6 +4,8 @@ import json
 from datetime import datetime
 from lxml import etree
 import csv
+from bs4 import BeautifulSoup
+
 
 headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36 Edge/18.18362',
@@ -21,6 +23,7 @@ def parse(headers,newsID,k,total,beginday,stopday):
     fnews_url = 'https://news.cnyes.com/news/id/{}?exp=a'.format(newsID) #原始新聞網址    
     response = requests.get(fnews_url, headers)
     html=etree.HTML(response.content)   
+    soup = BeautifulSoup(response.content,"html.parser")
     try: 
         title=html.xpath('//*[@id="content"]/div/div/div[2]/main/div[2]/h1/text()')[0] #新聞標題
         print('第 {} / {} 篇新聞: '.format(k,total),title)     
@@ -28,14 +31,17 @@ def parse(headers,newsID,k,total,beginday,stopday):
         posttime=posttime.split(' ')
         date=posttime[0]#新聞發佈日期
         time=posttime[1]#新聞發佈時間
-        content=html.xpath('//*[@id="content"]/div/div/div[2]/main/div[3]/article/section/div[1]//text()')
-        content=''.join(content).strip() #新聞內文
-        content=content.replace('\n','')
+
+        content = soup.find_all('div',{'itemprop':'articleBody'})
+        #content fixing
+        content = content[0].text
+        content = content.replace('\n','')
+
         url=fnews_url.replace('?exp=a','')#原始新聞來源網址
-        tag=html.xpath('//*[@id="content"]/div/div/div[2]/main/div[3]/article/section/nav[2]/a//text()')
-        tag=','.join(tag).strip() #Tag
-        news=[date,time,title,tag,content,url]
-        # print("news:",news)
+        # tag=html.xpath('//*[@id="content"]/div/div/div[2]/main/div[3]/article/section/nav[2]/a//text()')
+        # tag=','.join(tag).strip() #Tag
+        news=[date,time,title,content,url]
+        print("news:",news)
         
         #將資訊儲存成檔案(或寫入資料庫)
         savefile(beginday,stopday,news)
@@ -140,6 +146,8 @@ def main(beginyear,beginmonth,crawlrange,stopmonth=12):
             time.sleep(5)
     else:
         print('爬取區間設定錯誤!')
+
+
         
     if __name__ == '__main__':
     beginyear= 2021 #[2020,2021]  #爬取新聞年份
